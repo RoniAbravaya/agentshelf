@@ -57,7 +57,7 @@ async function main() {
   console.log(`AgentShelf E2E against ${APP_URL}`);
   const anon = await mcp(null);
   const tools = await anon.listTools();
-  check("MCP lists 10 tools", tools.tools.length === 10, tools.tools.map((t) => t.name).join(","));
+  check("MCP lists the 10 AgentShelf tools plus search/fetch for ChatGPT", tools.tools.length === 12, tools.tools.map((t) => t.name).join(","));
 
   // 1. Search (anonymous)
   const search = await call<{ results: Array<{ listing_id: string; title: string; price_cents: number; seller: { rating: number | null } }> }>(anon, "search_listings", { query: "canon film camera", max_price_usd: 120, near: "11217" });

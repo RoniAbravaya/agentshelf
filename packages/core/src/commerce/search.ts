@@ -85,10 +85,12 @@ export async function searchListings(db: Db, opts: SearchOptions): Promise<Searc
       const vec = await embedText(q, "query");
       if (vec) {
         const literal = `[${vec.join(",")}]`;
+        // Cosine distance below 0.6 only: with few embedded listings, an unbounded
+        // nearest-neighbour query would return unrelated items for any query.
         const vecRows = await db
           .select({ id: listings.id })
           .from(listings)
-          .where(and(where, sql`${listings.embedding} IS NOT NULL`))
+          .where(and(where, sql`${listings.embedding} IS NOT NULL`, sql`(${listings.embedding} <=> ${literal}::vector) < 0.6`))
           .orderBy(sql`${listings.embedding} <=> ${literal}::vector`)
           .limit(CANDIDATES);
         rrf(vecRows, "semantic match");

@@ -121,6 +121,13 @@ Alternative (`claude_desktop_config.json`):
 { "mcpServers": { "agentshelf": { "command": "npx", "args": ["-y", "mcp-remote", "https://<your-host>/mcp", "--transport", "http-only", "--header", "Authorization:${AUTH_HEADER}"], "env": { "AUTH_HEADER": "Bearer ask_..." } } } }
 ```
 
+### Connect ChatGPT
+
+ChatGPT can read the catalog two ways, no demo agent involved:
+
+1. **Custom connector (MCP)**: ChatGPT → Settings → Connectors → *Create* (turn on Developer mode under Advanced if the option is hidden) → MCP server URL `https://<your-host>/mcp`, authentication *None*. The server exposes the `search` and `fetch` tools ChatGPT expects next to the AgentShelf tools. Enable the connector in a chat and ask, for example, "Find me brown suede loafers near Schenectady under $50". ChatGPT connectors cannot send a static bearer key, so they browse and recommend; buying still happens on the listing page with PayPal or through an MCP client that supports headers (Claude Desktop, the demo agent).
+2. **Browsing**: paste a listing URL or `https://<your-host>/feed.json` into ChatGPT with web browsing on. Listing pages carry schema.org Product JSON-LD and the feed is a schema.org ItemList.
+
 ### MCP tools
 
 | Tool | Auth | Purpose |

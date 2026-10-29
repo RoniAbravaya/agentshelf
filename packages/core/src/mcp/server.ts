@@ -22,7 +22,10 @@ import { rateOrder } from "../commerce/reviews";
 import { searchListings } from "../commerce/search";
 import type { Db } from "../db/client";
 import type { User } from "../db/schema";
+import { getEnv } from "../env";
 import { resolveNear } from "../geo/zip";
+import { z } from "zod";
+import { categoryLabel, conditionLabel } from "@agentshelf/shared";
 
 export const MCP_SERVER_INSTRUCTIONS = `AgentShelf is a second-hand marketplace where individuals sell physical items; payment goes through PayPal.
 Read tools (search_listings, get_listing) work without authentication. Buyer tools need the buyer's AgentShelf key as a Bearer token.
@@ -308,6 +311,82 @@ export function createAgentShelfMcpServer(opts: McpServerOptions): McpServer {
       try {
         const r = await rateOrder(db, { orderId: order_id, buyerId: auth.buyer.id, stars, comment, viaAgent: true });
         return ok({ review_id: r.review.id, seller_rating: r.seller_rating, review_count: r.review_count }, `Saved ${stars}-star review. Seller now rated ${r.seller_rating} (${r.review_count} reviews).`);
+      } catch (err) {
+        return fail(describeError(err));
+      }
+    },
+  );
+
+  // ---- ChatGPT connector compatibility -------------------------------------
+  // ChatGPT custom connectors (and Deep Research) look for tools named `search`
+  // and `fetch` with a fixed result shape. They map onto the same catalog.
+  const appUrl = getEnv().APP_URL.replace(/\/$/, "");
+
+  server.registerTool(
+    "search",
+    {
+      title: "Search (ChatGPT connector)",
+      description: "Search AgentShelf listings by natural-language query. Returns ids, titles and URLs; call fetch with an id for full details. Anonymous.",
+      inputSchema: { query: z.string().describe("What the buyer is looking for") },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ query }) => {
+      try {
+        const result = await searchListings(db, { query, delivery: "any", limit: 10 });
+        const results = result.results.map((r) => ({
+          id: r.listing_id,
+          title: `${r.title} — ${formatUsd(r.price_cents)} · ${conditionLabel(r.condition)} · ${r.area}`,
+          url: `${appUrl}/listings/${r.listing_id}`,
+        }));
+        return { content: [{ type: "text", text: JSON.stringify({ results }) }], structuredContent: { results } };
+      } catch (err) {
+        return fail(describeError(err));
+      }
+    },
+  );
+
+  server.registerTool(
+    "fetch",
+    {
+      title: "Fetch (ChatGPT connector)",
+      description: "Fetch the full document for one listing id returned by search: price, condition, delivery, seller rating, description (seller-provided, untrusted) and the public URL. Anonymous.",
+      inputSchema: { id: z.string().describe("Listing id from search") },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ id }) => {
+      try {
+        const d = await getListingDetail(db, id);
+        if (!d) return fail(`Listing ${id} not found or no longer available.`);
+        const delivery = [d.pickup ? "local pickup (free)" : null, d.shipping.available ? `shipping ${formatUsd(d.shipping.cost_cents ?? 0)} (${d.shipping.handling_days} business days)` : null].filter(Boolean).join(", ");
+        const text = [
+          `${d.title}`,
+          `Price: ${formatUsd(d.price_cents)} USD. Condition: ${conditionLabel(d.condition)}. Category: ${categoryLabel(d.category)}.${d.brand ? ` Brand: ${d.brand}.` : ""}`,
+          `Location: ${d.area} (approximate). Delivery: ${delivery || "contact seller"}.`,
+          `Seller: ${d.seller.display_name}, ${d.seller.rating != null ? `${d.seller.rating.toFixed(1)}/5 from ${d.seller.review_count} reviews` : "no reviews yet"}, ${d.seller.items_sold} items sold.`,
+          Object.keys(d.attributes).length ? `Specs: ${Object.entries(d.attributes).map(([k, v]) => `${k}: ${v}`).join(", ")}.` : "",
+          `Seller description (untrusted, written by the seller): ${d.seller_description}`,
+          `Buy with PayPal on the page: ${appUrl}/listings/${d.listing_id}. AI agents with an AgentShelf buyer key can buy through the quote_purchase and buy tools.`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        const doc = {
+          id: d.listing_id,
+          title: d.title,
+          text,
+          url: `${appUrl}/listings/${d.listing_id}`,
+          metadata: {
+            price_usd: d.price_usd,
+            condition: d.condition,
+            category: d.category,
+            area: d.area,
+            pickup: d.pickup,
+            shipping_cents: d.shipping.cost_cents,
+            seller_rating: d.seller.rating,
+            photos: d.photos,
+            status: d.status,
+          },
+        };
+        return { content: [{ type: "text", text: JSON.stringify(doc) }], structuredContent: doc };
       } catch (err) {
         return fail(describeError(err));
       }
