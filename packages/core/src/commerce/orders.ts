@@ -462,8 +462,9 @@ export async function buy(db: Db, input: { buyerId: string; quoteId: string }): 
     } catch (err) {
       if (err instanceof PayPalApiError) {
         // vault_id + different payee rejected, token invalid, etc. -> one-tap approval fallback.
-        console.error("vaulted agent order failed; falling back to approval link", err.message, err.debugId);
-        return approvalLinkPath(db, paypal, order, common, `vault payment rejected: ${err.code ?? err.status}`);
+        const issues = err.issues.map((i) => `${i.issue ?? "?"}: ${i.description ?? ""}`).join(" | ");
+        console.error("vaulted agent order failed; falling back to approval link", err.message, issues, "debug_id", err.debugId);
+        return approvalLinkPath(db, paypal, order, common, `vault payment rejected: ${err.code ?? err.status} ${issues}`.trim());
       }
       await failOrder(db, order, err instanceof Error ? err.message : "payment failed");
       throw err;
