@@ -152,7 +152,8 @@ export class PayPalClient implements PayPalApi {
           reference_id: input.referenceId,
           custom_id: input.customId,
           description: input.description.slice(0, 127),
-          payee: { email_address: input.payeeEmail },
+          // No payee -> the platform (API caller) account receives the funds.
+          ...(input.payeeEmail ? { payee: { email_address: input.payeeEmail } } : {}),
           amount,
         },
       ],
