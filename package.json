@@ -1,0 +1,31 @@
+{
+  "name": "agentshelf",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sell anything to people and AI agents, paid through PayPal.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "dev:web": "pnpm --filter @agentshelf/web dev",
+    "dev:mcp": "pnpm --filter @agentshelf/mcp dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "db:migrate": "pnpm --filter @agentshelf/core db:migrate",
+    "db:seed": "pnpm --filter @agentshelf/core db:seed",
+    "db:generate": "pnpm --filter @agentshelf/core db:generate",
+    "e2e:sandbox": "tsx scripts/e2e/sandbox.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.0"
+  }
+}

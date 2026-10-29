@@ -1,0 +1,67 @@
+# Optional Render blueprint (Railway is the primary target; see README).
+services:
+  - type: web
+    name: agentshelf-web
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @agentshelf/web build
+    startCommand: pnpm --filter @agentshelf/core db:migrate && pnpm --filter @agentshelf/web start
+    healthCheckPath: /feed.json
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: INTERNAL_API_SECRET
+        generateValue: true
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+  - type: web
+    name: agentshelf-mcp
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm --filter @agentshelf/mcp start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+  - type: cron
+    name: agentshelf-housekeeping
+    runtime: node
+    schedule: "*/5 * * * *"
+    buildCommand: "true"
+    startCommand: curl -fsS -X POST -H "Authorization: Bearer $INTERNAL_API_SECRET" "$APP_URL/api/cron/housekeeping"
+    envVars:
+      - key: APP_URL
+        sync: false
+      - key: INTERNAL_API_SECRET
+        sync: false

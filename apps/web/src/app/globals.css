@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0a2540;
+  --color-brand-light: #e8eef8;
+  --color-accent: #ffc439;
+  --color-accent-dark: #e0a800;
+  --color-ok: #16a34a;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 150ms, color 150ms;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+@utility btn-primary {
+  @apply btn;
+  background-color: var(--color-brand);
+  color: white;
+  &:hover {
+    background-color: var(--color-slate-800);
+  }
+}
+@utility btn-secondary {
+  @apply btn;
+  border: 1px solid var(--color-slate-300);
+  background-color: white;
+  color: var(--color-slate-800);
+  &:hover {
+    background-color: var(--color-slate-100);
+  }
+}
+@utility btn-accent {
+  @apply btn;
+  background-color: var(--color-accent);
+  color: var(--color-slate-900);
+  &:hover {
+    background-color: var(--color-accent-dark);
+  }
+}
+@utility btn-danger {
+  @apply btn;
+  border: 1px solid var(--color-red-200);
+  background-color: white;
+  color: var(--color-red-700);
+  &:hover {
+    background-color: var(--color-red-50);
+  }
+}
+@utility card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-slate-200);
+  background-color: white;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+@utility input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-slate-300);
+  background-color: white;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-slate-900);
+  &::placeholder {
+    color: var(--color-slate-400);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-brand) 20%, transparent);
+  }
+}
+@utility label {
+  margin-bottom: 0.25rem;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-slate-500);
+}
+@utility badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+@utility badge-ai {
+  @apply badge;
+  background-color: var(--color-violet-100);
+  color: var(--color-violet-800);
+}
+
+.prose-sm p {
+  margin-bottom: 0.5rem;
+}
