@@ -45,13 +45,13 @@ export function ChatThread({ conversationId, role, initial }: { conversationId: 
 
   const mine = (m: Msg) => (role === "seller" ? m.sender === "seller" : m.sender !== "seller");
   return (
-    <div className="card flex flex-col">
-      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
-        {messages.length === 0 && <p className="text-center text-sm text-slate-400">No messages yet.</p>}
+    <div className="card flex flex-col overflow-hidden">
+      <div className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto p-4">
+        {messages.length === 0 && <p className="text-center text-sm text-muted">No messages yet.</p>}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${mine(m) ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${mine(m) ? "bg-brand text-white" : "bg-slate-100 text-slate-900"}`}>
-              <div className="mb-0.5 text-[10px] uppercase tracking-wide opacity-70">
+            <div className={mine(m) ? "bubble-user" : "bubble-agent"}>
+              <div className={`mb-0.5 text-[10px] font-semibold uppercase tracking-wide ${mine(m) ? "text-white/70" : "text-muted"}`}>
                 {m.sender === "buyer_agent" ? "Buyer's AI agent" : m.sender === "seller" ? "Seller" : "Buyer"} · {new Date(m.created_at).toLocaleString()}
               </div>
               <div className="whitespace-pre-line">{m.body}</div>
@@ -59,13 +59,13 @@ export function ChatThread({ conversationId, role, initial }: { conversationId: 
           </div>
         ))}
       </div>
-      <form onSubmit={send} className="flex gap-2 border-t border-slate-100 p-3">
+      <form onSubmit={send} className="flex gap-2 border-t border-line p-3">
         <input className="input" placeholder="Write a message" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} />
         <button className="btn-primary" disabled={busy} type="submit">
           Send
         </button>
       </form>
-      {error && <p className="px-3 pb-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="px-3 pb-3 text-sm text-danger">{error}</p>}
     </div>
   );
 }

@@ -7,17 +7,20 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next } = await searchParams;
   return (
     <div className="mx-auto max-w-md space-y-4">
-      <h1 className="text-2xl font-bold">Sign in</h1>
+      <h1 className="font-display text-[26px] font-extrabold md:text-[32px]">Sign in</h1>
       <AuthForm mode="login" next={next} />
-      <p className="text-sm text-slate-600">
-        New here? <Link className="underline" href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Create an account</Link>
+      <p className="text-sm text-ink-2">
+        New here?{" "}
+        <Link className="text-accent underline" href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`}>
+          Create an account
+        </Link>
       </p>
-      <div className="card p-4 text-xs text-slate-600">
-        <p className="font-semibold">Demo accounts (after <code>pnpm db:seed</code>, password <code>demo1234</code>):</p>
+      <div className="card p-4 text-xs text-ink-2">
+        <p className="font-semibold text-ink">Demo accounts (password demo1234):</p>
         <ul className="mt-1 list-disc pl-4">
-          <li>maya@agentshelf.demo - seller with listings</li>
-          <li>dan@agentshelf.demo - buyer with spending rules, wallet and agent key</li>
-          <li>jess@agentshelf.demo - human buyer</li>
+          <li>maya@agentshelf.demo — seller with listings</li>
+          <li>dan@agentshelf.demo — buyer with spending rules, wallet and agent key</li>
+          <li>jess@agentshelf.demo — human buyer</li>
         </ul>
       </div>
     </div>

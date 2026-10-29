@@ -6,7 +6,7 @@ import { loginAction, signupAction, type AuthState } from "./actions";
 export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
   const [state, action, pending] = useActionState<AuthState, FormData>(mode === "login" ? loginAction : signupAction, undefined);
   return (
-    <form action={action} className="card space-y-4 p-5">
+    <form action={action} className="card flex flex-col gap-4 p-5">
       {next && <input type="hidden" name="next" value={next} />}
       {mode === "signup" && (
         <div>
@@ -33,13 +33,13 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
           <label className="label" htmlFor="paypal_payee_email">
             PayPal email for payouts (optional, defaults to your email)
           </label>
-          <input className="input" id="paypal_payee_email" name="paypal_payee_email" type="email" placeholder="sb-seller@personal.example.com" />
-          <p className="mt-1 text-xs text-slate-500">Use a sandbox personal or business account email. Buyers pay this account directly; AgentShelf takes no fee.</p>
+          <input className="input" id="paypal_payee_email" name="paypal_payee_email" type="email" placeholder="sb-seller@business.example.com" />
+          <p className="mt-1 text-xs text-muted">Use a sandbox personal or business account email. Buyers pay this account directly; AgentShelf takes no fee.</p>
         </div>
       )}
-      {state?.error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{state.error}</p>}
-      <button className="btn-primary w-full" type="submit" disabled={pending}>
-        {pending ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+      {state?.error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{state.error}</p>}
+      <button className="btn-primary min-h-12 w-full text-[15px]" type="submit" disabled={pending}>
+        {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
       </button>
     </form>
   );

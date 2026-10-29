@@ -41,7 +41,7 @@ export function OrderActions(props: { orderId: string; role: "buyer" | "seller";
           void post(`/api/orders/${props.orderId}/tracking`, { tracking_number: tracking, carrier });
         }}
       >
-        <div>
+        <div className="flex-[1_1_180px]">
           <label className="label">Tracking number</label>
           <input className="input" value={tracking} onChange={(e) => setTracking(e.target.value)} required />
         </div>
@@ -100,34 +100,34 @@ export function OrderActions(props: { orderId: string; role: "buyer" | "seller";
     actions.push(
       <form
         key="review"
-        className="space-y-2"
+        className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           void post(`/api/orders/${props.orderId}/review`, { stars, comment });
         }}
       >
-        <div className="label">Rate the seller</div>
+        <strong className="text-[15px]">Rate the seller</strong>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((s) => (
-            <button key={s} type="button" onClick={() => setStars(s)} className={`text-2xl ${s <= stars ? "text-amber-500" : "text-slate-300"}`} aria-label={`${s} stars`}>
+            <button key={s} type="button" onClick={() => setStars(s)} className={`text-[28px] leading-none ${s <= stars ? "text-amber-500" : "text-line-2"}`} aria-label={`${s} stars`}>
               ★
             </button>
           ))}
         </div>
         <input className="input" placeholder="Short review (optional)" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} />
-        <button className="btn-primary" disabled={busy} type="submit">
+        <button className="btn-dark self-start" disabled={busy} type="submit">
           Submit review
         </button>
       </form>,
     );
   }
-  if (props.role === "buyer" && props.reviewed) actions.push(<p key="reviewed" className="text-sm text-slate-500">You rated this order. Thanks!</p>);
+  if (props.role === "buyer" && props.reviewed) actions.push(<p key="reviewed" className="text-sm text-ink-2">You rated this order. Thanks!</p>);
 
   if (actions.length === 0 && !error) return null;
   return (
-    <div className="card space-y-3 p-5">
+    <div className="card flex flex-col gap-3.5 p-4 md:p-5">
       {actions}
-      {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
     </div>
   );
 }

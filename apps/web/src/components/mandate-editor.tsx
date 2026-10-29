@@ -54,111 +54,121 @@ export function MandateEditor({ providers, current, view, homeLabel }: { provide
 
   const p = draft?.policy;
   return (
-    <div className="space-y-3">
-      {view && !draft && (
-        <div className="rounded-md bg-slate-50 p-3 text-sm">
-          <div className="mb-1 font-medium">Current rules (v{current?.version})</div>
-          <PolicySummary policy={current!.policy} homeLabel={homeLabel} />
-          <div className="mt-1 text-xs text-slate-500">
-            Spent this month: {formatUsd(view.spent_this_month_cents)} · remaining {formatUsd(view.remaining_monthly_cents)}
-          </div>
-        </div>
-      )}
-      <textarea className="input min-h-24" value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLE} maxLength={1500} />
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <input className="input" placeholder="Home ZIP (for pickup distance)" value={zip} onChange={(e) => setZip(e.target.value)} pattern="\d{5}" />
-        <select className="input" value={provider} onChange={(e) => setProvider(e.target.value as Provider["id"])}>
+    <div className="flex flex-col gap-3.5">
+      <div>
+        <label htmlFor="rules" className="label">
+          Write them in plain English
+        </label>
+        <textarea id="rules" className="input min-h-24 leading-relaxed" value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLE} maxLength={1500} />
+        {!text && (
+          <button type="button" className="mt-1 text-xs text-muted underline" onClick={() => setText(EXAMPLE)}>
+            Use the example
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <label htmlFor="homezip" className="sr-only">
+          Home ZIP
+        </label>
+        <input id="homezip" className="input w-[150px]" placeholder="Home ZIP" value={zip} onChange={(e) => setZip(e.target.value)} pattern="\d{5}" inputMode="numeric" />
+        <span className="text-[13px] text-muted">Home area for pickup distance</span>
+        <select className="input w-auto" value={provider} onChange={(e) => setProvider(e.target.value as Provider["id"])}>
           {providers.map((pr) => (
             <option key={pr.id} value={pr.id}>
               Parse with {pr.label}
             </option>
           ))}
         </select>
-        <button className="btn-primary" type="button" onClick={parse} disabled={busy || text.trim().length < 5}>
-          {busy ? "Parsing..." : "Turn into rules"}
+        <button className="btn-dark sm:ml-auto" type="button" onClick={parse} disabled={busy || text.trim().length < 5}>
+          {busy && !draft ? "Parsing…" : "Turn into rules"}
         </button>
       </div>
-      {!text && (
-        <button type="button" className="text-xs text-slate-500 underline" onClick={() => setText(EXAMPLE)}>
-          Use the example
-        </button>
+
+      {current && !draft && (
+        <div className="rounded-[14px] bg-surface p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="font-semibold">Current rules</span>
+            {view && (
+              <span className="text-xs text-muted">
+                Spent this month {formatUsd(view.spent_this_month_cents)} · remaining {formatUsd(view.remaining_monthly_cents)}
+              </span>
+            )}
+          </div>
+          <RuleTiles policy={current.policy} homeLabel={homeLabel} />
+        </div>
       )}
+
       {draft && p && (
-        <div className="space-y-3 rounded-md border border-violet-200 bg-violet-50 p-4 text-sm">
-          <div>
-            <span className="badge-ai mr-2">AI</span>
-            {draft.draft.summary}
+        <div className="tone-ai flex flex-col gap-3 rounded-[14px] p-4">
+          <div className="flex items-start gap-2.5 text-sm leading-relaxed">
+            <span className="badge-ai mt-0.5 bg-white">AI</span>
+            <span>{draft.draft.summary}</span>
           </div>
-          <PolicySummary policy={p} homeLabel={p.home_geo?.label ?? null} />
+          <RuleTiles policy={p} homeLabel={p.home_geo?.label ?? null} />
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-xs">
-              Max per order ($)
-              <input className="input" type="number" value={p.max_per_order_cents / 100} onChange={(e) => setDraft({ ...draft, policy: { ...p, max_per_order_cents: Math.round(Number(e.target.value) * 100) } })} />
-            </label>
-            <label className="text-xs">
-              Monthly cap ($)
-              <input className="input" type="number" value={p.monthly_cap_cents / 100} onChange={(e) => setDraft({ ...draft, policy: { ...p, monthly_cap_cents: Math.round(Number(e.target.value) * 100) } })} />
-            </label>
-            <label className="text-xs">
-              Ask me at or above ($, blank = never ask)
-              <input className="input" type="number" value={p.auto_approve_below_cents == null ? "" : p.auto_approve_below_cents / 100} onChange={(e) => setDraft({ ...draft, policy: { ...p, auto_approve_below_cents: e.target.value === "" ? null : Math.round(Number(e.target.value) * 100) } })} />
-            </label>
-            <label className="text-xs">
-              Min seller rating (blank = any)
-              <input className="input" type="number" step="0.1" min={1} max={5} value={p.min_seller_rating ?? ""} onChange={(e) => setDraft({ ...draft, policy: { ...p, min_seller_rating: e.target.value === "" ? null : Number(e.target.value) } })} />
-            </label>
-            <label className="text-xs">
-              Max pickup distance (km, blank = no limit)
-              <input className="input" type="number" value={p.max_pickup_km ?? ""} onChange={(e) => setDraft({ ...draft, policy: { ...p, max_pickup_km: e.target.value === "" ? null : Number(e.target.value) } })} />
-            </label>
-            <label className="text-xs">
-              Max shipping cost ($, blank = no limit)
-              <input className="input" type="number" value={p.max_shipping_cents == null ? "" : p.max_shipping_cents / 100} onChange={(e) => setDraft({ ...draft, policy: { ...p, max_shipping_cents: e.target.value === "" ? null : Math.round(Number(e.target.value) * 100) } })} />
-            </label>
+            <Num label="Max per order ($)" value={p.max_per_order_cents / 100} onChange={(v) => setDraft({ ...draft, policy: { ...p, max_per_order_cents: Math.round((v ?? 0) * 100) } })} />
+            <Num label="Monthly cap ($)" value={p.monthly_cap_cents / 100} onChange={(v) => setDraft({ ...draft, policy: { ...p, monthly_cap_cents: Math.round((v ?? 0) * 100) } })} />
+            <Num label="Ask me at or above ($, blank = never ask)" value={p.auto_approve_below_cents == null ? null : p.auto_approve_below_cents / 100} onChange={(v) => setDraft({ ...draft, policy: { ...p, auto_approve_below_cents: v == null ? null : Math.round(v * 100) } })} />
+            <Num label="Min seller rating (blank = any)" value={p.min_seller_rating} step={0.1} onChange={(v) => setDraft({ ...draft, policy: { ...p, min_seller_rating: v } })} />
+            <Num label="Max pickup distance (km, blank = no limit)" value={p.max_pickup_km} onChange={(v) => setDraft({ ...draft, policy: { ...p, max_pickup_km: v } })} />
+            <Num label="Max shipping cost ($, blank = no limit)" value={p.max_shipping_cents == null ? null : p.max_shipping_cents / 100} onChange={(v) => setDraft({ ...draft, policy: { ...p, max_shipping_cents: v == null ? null : Math.round(v * 100) } })} />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => {
               const on = p.allowed_categories.includes(c.id);
               return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand text-white" : "border-slate-300 bg-white"}`}
-                  onClick={() => setDraft({ ...draft, policy: { ...p, allowed_categories: on ? p.allowed_categories.filter((x) => x !== c.id) : [...p.allowed_categories, c.id] } })}
-                >
+                <button key={c.id} type="button" className={on ? "chip-on min-h-8 text-xs" : "chip min-h-8 text-xs"} onClick={() => setDraft({ ...draft, policy: { ...p, allowed_categories: on ? p.allowed_categories.filter((x) => x !== c.id) : [...p.allowed_categories, c.id] } })}>
                   {c.label}
                 </button>
               );
             })}
-            <span className="self-center text-xs text-slate-500">{p.allowed_categories.length === 0 ? "(any category)" : ""}</span>
+            <span className="self-center text-xs text-muted">{p.allowed_categories.length === 0 ? "(any category)" : ""}</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button className="btn-primary" type="button" onClick={save} disabled={busy}>
               Confirm and save rules
             </button>
             <button className="btn-secondary" type="button" onClick={() => setDraft(null)}>
               Cancel
             </button>
+            <span className="text-xs text-muted">Hard platform ceilings still apply: $1,000 per order, $5,000 per month.</span>
           </div>
         </div>
       )}
-      {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      {saved && <p className="rounded-md bg-green-50 p-2 text-sm text-green-800">{saved}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+      {saved && <p className="rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">{saved}</p>}
     </div>
   );
 }
 
-function PolicySummary({ policy: p, homeLabel }: { policy: SpendPolicy; homeLabel: string | null }) {
+function Num({ label, value, step, onChange }: { label: string; value: number | null; step?: number; onChange: (v: number | null) => void }) {
   return (
-    <ul className="list-disc pl-5 text-sm">
-      <li>Max {formatUsd(p.max_per_order_cents)} per order, {formatUsd(p.monthly_cap_cents)} per month</li>
-      <li>{p.auto_approve_below_cents == null ? "Pay automatically within the caps" : `Pay automatically below ${formatUsd(p.auto_approve_below_cents)}; ask me at or above`}</li>
-      <li>{p.allowed_categories.length ? `Only: ${p.allowed_categories.map(categoryLabel).join(", ")}` : "Any category"}</li>
-      <li>
-        Pickup {p.allow_pickup ? (p.max_pickup_km != null ? `within ${p.max_pickup_km} km${homeLabel ? ` of ${homeLabel}` : " of home"}` : "allowed") : "not allowed"}; shipping {p.allow_shipping ? (p.max_shipping_cents != null ? `up to ${formatUsd(p.max_shipping_cents)}` : "allowed") : "not allowed"}
-      </li>
-      {p.min_seller_rating != null && <li>Sellers rated {p.min_seller_rating}+ only</li>}
-      {p.blocked_keywords.length > 0 && <li>Never buy: {p.blocked_keywords.join(", ")}</li>}
-    </ul>
+    <label className="text-xs text-ink-2">
+      {label}
+      <input className="input mt-1" type="number" step={step ?? 1} value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))} />
+    </label>
+  );
+}
+
+function RuleTiles({ policy: p, homeLabel }: { policy: SpendPolicy; homeLabel: string | null }) {
+  const tiles = [
+    { k: "Per order", v: formatUsd(p.max_per_order_cents) },
+    { k: "Per month", v: formatUsd(p.monthly_cap_cents) },
+    { k: "Ask me at", v: p.auto_approve_below_cents == null ? "never" : `${formatUsd(p.auto_approve_below_cents)}+` },
+    { k: "Categories", v: p.allowed_categories.length ? p.allowed_categories.map(categoryLabel).join(", ") : "Any" },
+    { k: "Pickup", v: p.allow_pickup ? (p.max_pickup_km != null ? `≤ ${p.max_pickup_km} km${homeLabel ? ` of ${homeLabel}` : ""}` : "allowed") : "not allowed" },
+    { k: "Shipping", v: p.allow_shipping ? (p.max_shipping_cents != null ? `≤ ${formatUsd(p.max_shipping_cents)}` : "allowed") : "not allowed" },
+    { k: "Seller rating", v: p.min_seller_rating != null ? `${p.min_seller_rating}★+` : "any" },
+  ];
+  if (p.blocked_keywords.length) tiles.push({ k: "Never buy", v: p.blocked_keywords.join(", ") });
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+      {tiles.map((t) => (
+        <div key={t.k} className="flex flex-col gap-0.5 rounded-[10px] border border-line bg-white px-3 py-2.5">
+          <span className="eyebrow">{t.k}</span>
+          <span className="text-[15px] font-bold leading-snug">{t.v}</span>
+        </div>
+      ))}
+    </div>
   );
 }

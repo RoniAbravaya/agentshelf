@@ -19,34 +19,39 @@ export function ListingRowActions({ id, status }: { id: string; status: string }
     }
   }
   return (
-    <div className="flex shrink-0 gap-1 text-xs">
-      {status !== "SOLD" && status !== "RESERVED" && (
-        <Link className="btn-secondary px-2 py-1" href={`/sell/${id}`}>
+    <div className="flex shrink-0 flex-wrap gap-1.5">
+      {status === "DRAFT" && (
+        <Link className="btn-secondary btn-sm" href={`/sell/${id}`}>
+          Continue
+        </Link>
+      )}
+      {status !== "SOLD" && status !== "RESERVED" && status !== "DRAFT" && (
+        <Link className="btn-secondary btn-sm" href={`/sell/${id}`}>
           Edit
         </Link>
       )}
       {status === "AVAILABLE" && (
         <>
-          <button className="btn-secondary px-2 py-1" disabled={busy} onClick={() => act("pause")}>
+          <button className="btn-secondary btn-sm" disabled={busy} onClick={() => act("pause")}>
             Pause
           </button>
-          <button className="btn-secondary px-2 py-1" disabled={busy} onClick={() => act("mark-sold")}>
+          <button className="btn-secondary btn-sm" disabled={busy} onClick={() => act("mark-sold")}>
             Sold elsewhere
           </button>
         </>
       )}
       {status === "PAUSED" && (
-        <button className="btn-secondary px-2 py-1" disabled={busy} onClick={() => act("resume")}>
+        <button className="btn-secondary btn-sm" disabled={busy} onClick={() => act("resume")}>
           Resume
         </button>
       )}
       {status === "SOLD" && (
-        <button className="btn-secondary px-2 py-1" disabled={busy} onClick={() => act("relist")}>
+        <button className="btn-secondary btn-sm" disabled={busy} onClick={() => act("relist")}>
           Relist
         </button>
       )}
       {status !== "RESERVED" && (
-        <button className="btn-danger px-2 py-1" disabled={busy} onClick={() => act("delete")}>
+        <button className="btn-danger btn-sm" disabled={busy} onClick={() => act("delete")}>
           Delete
         </button>
       )}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { AiListingDraft } from "@agentshelf/shared";
 import { CommerceError, getOwnedListing, getSeller } from "@agentshelf/core";
 import { ListingEditor } from "@/components/listing-editor";
+import { Steps } from "@/components/steps";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -20,13 +21,18 @@ export default async function ReviewListingPage({ params }: { params: Promise<{ 
   }
   const seller = await getSeller(database, user.id);
   const draft = (listing.aiDraft as AiListingDraft | null) ?? null;
+  const isDraft = listing.status === "DRAFT";
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">{listing.status === "DRAFT" ? "Check what AI wrote" : "Edit listing"}</h1>
-        <p className="text-sm text-slate-600">
-          Everything marked <span className="badge-ai">AI</span> was drafted from your photos{listing.aiProvider ? ` by ${listing.aiProvider}` : ""}. Edit anything, set your price, choose delivery and publish.
-        </p>
+    <div className="mx-auto max-w-5xl space-y-5">
+      {isDraft && <Steps current={3} />}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[26px] font-extrabold md:text-[32px]">{isDraft ? "Check what AI wrote" : "Edit listing"}</h1>
+          <p className="mt-1 text-sm text-ink-2">
+            {listing.aiProvider ? `Drafted from your ${listing.photos.length} photo(s) by ${listing.aiProvider}. ` : ""}
+            Edit anything marked <span className="badge-ai">AI</span>, set your price, then publish.
+          </p>
+        </div>
       </div>
       <ListingEditor
         listing={{
@@ -51,6 +57,9 @@ export default async function ReviewListingPage({ params }: { params: Promise<{ 
         }}
         draft={draft}
         payeeEmail={seller?.paypalPayeeEmail ?? user.email}
+        sellerName={seller?.displayName ?? user.displayName}
+        sellerRating={seller?.ratingAvg ?? null}
+        sellerReviews={seller?.reviewCount ?? 0}
       />
     </div>
   );

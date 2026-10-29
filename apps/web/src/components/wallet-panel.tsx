@@ -35,30 +35,40 @@ export function WalletPanel({ wallet, paypalMode }: { wallet: Wallet; paypalMode
   }
 
   return (
-    <div className="space-y-2 text-sm">
-      {wallet.status === "ACTIVE" ? (
-        <p>
-          <span className="badge bg-green-100 text-green-800">Saved</span> PayPal wallet {wallet.payer_email ? <code>{wallet.payer_email}</code> : ""} saved on {wallet.created_at ? new Date(wallet.created_at).toLocaleDateString() : ""}. The payment token is stored encrypted on the server.
-        </p>
-      ) : (
-        <p className="text-slate-600">
-          {wallet.status === "DELETED" ? "Your saved wallet was removed. " : ""}
-          Approve once in PayPal (Vault v3 setup token) so your agent can pay without a redirect. Nothing is charged now.
-        </p>
-      )}
-      {paypalMode === "mock" && <p className="text-xs text-amber-700">Sandbox not configured: a simulated PayPal approval page is used.</p>}
-      <div className="flex gap-2">
+    <div className="flex flex-col gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3.5 rounded-xl border border-line px-4 py-3.5">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-[10px] bg-paypal text-ink">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="3" />
+            <path d="M2 10h20" />
+          </svg>
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          {wallet.status === "ACTIVE" ? (
+            <>
+              <strong className="text-[15px]">PayPal{wallet.payer_email ? ` · ${wallet.payer_email}` : ""}</strong>
+              <span className="text-[13px] text-ink-2">Saved {wallet.created_at ? new Date(wallet.created_at).toLocaleDateString() : ""} via Vault. Token stored encrypted on the server; the agent never sees it.</span>
+            </>
+          ) : (
+            <>
+              <strong className="text-[15px]">{wallet.status === "DELETED" ? "Wallet removed" : "No wallet saved yet"}</strong>
+              <span className="text-[13px] text-ink-2">Approve once in PayPal (Vault setup token) so your agent can pay without a redirect. Nothing is charged now.</span>
+            </>
+          )}
+        </span>
         {wallet.status !== "ACTIVE" ? (
-          <button className="btn-accent" type="button" onClick={connect} disabled={busy || paypalMode === "none"}>
-            {busy ? "Opening PayPal..." : "Connect PayPal"}
+          <button className="btn-accent min-h-11 text-sm sm:ml-auto" type="button" onClick={connect} disabled={busy || paypalMode === "none"}>
+            {busy ? "Opening PayPal…" : "Connect PayPal"}
           </button>
         ) : (
-          <button className="btn-danger" type="button" onClick={remove} disabled={busy}>
+          <button className="btn-danger sm:ml-auto" type="button" onClick={remove} disabled={busy}>
             Remove wallet
           </button>
         )}
       </div>
-      {error && <p className="rounded-md bg-red-50 p-2 text-red-700">{error}</p>}
+      <span className="text-[13px] text-muted">Purchases within your rules and below the ask-me limit are paid instantly. Above it, you get a one-tap PayPal approval link.</span>
+      {paypalMode === "mock" && <p className="text-xs text-warn">Sandbox not configured: a simulated PayPal approval page is used.</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-danger">{error}</p>}
     </div>
   );
 }

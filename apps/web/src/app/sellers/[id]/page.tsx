@@ -19,30 +19,30 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   return (
     <div className="space-y-6">
       <div className="card flex items-center gap-4 p-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-light text-xl font-bold text-brand">{profile.display_name.slice(0, 1)}</div>
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-xl font-bold text-accent">{profile.display_name.slice(0, 1)}</div>
         <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-extrabold">{profile.display_name}</h1>
+          <p className="text-sm text-ink-2">
             {profile.rating != null ? `${profile.rating.toFixed(1)}★ (${profile.review_count} reviews)` : "New seller"} · {profile.items_sold} items sold · member since {new Date(profile.member_since).getFullYear()}
           </p>
-          {profile.bio && <p className="text-sm">{profile.bio}</p>}
+          {profile.bio && <p className="mt-1 text-sm">{profile.bio}</p>}
         </div>
       </div>
       {reviews.length > 0 && (
         <section className="card p-5">
-          <h2 className="mb-2 font-semibold">Reviews</h2>
+          <h2 className="mb-2 font-display text-lg font-extrabold">Reviews</h2>
           <ul className="space-y-1 text-sm">
             {reviews.map((r) => (
               <li key={r.id}>
-                <span className="text-amber-500">{"★".repeat(r.stars)}</span> {r.comment} <span className="text-xs text-slate-400">{r.createdAt.toLocaleDateString()}</span>
+                <span className="text-amber-600">{"★".repeat(r.stars)}</span> {r.comment} <span className="text-xs text-muted">{r.createdAt.toLocaleDateString()}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
       <section>
-        <h2 className="mb-2 font-semibold">Items for sale</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="mb-3 font-display text-lg font-extrabold">Items for sale</h2>
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
           {items.map((l) => (
             <ListingCard key={l.id} card={toListingCard(l, seller)} />
           ))}

@@ -32,29 +32,29 @@ export function SellerSettingsForm({ initial }: { initial: { display_name: strin
     }
   }
   return (
-    <form onSubmit={save} className="space-y-4 pt-3">
+    <form onSubmit={save} className="flex flex-col gap-4">
       <div>
         <label className="label">Display name</label>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} minLength={2} required />
-        <p className="mt-1 text-xs text-slate-500">Shown to buyers as first name + initial, e.g. Maya A.</p>
+        <p className="mt-1 text-xs text-muted">Shown to buyers as first name + initial, e.g. Maya A.</p>
       </div>
       <div>
         <label className="label">PayPal email that receives payments (sandbox)</label>
         <input className="input" type="email" value={payee} onChange={(e) => setPayee(e.target.value)} required />
       </div>
       <div>
-        <label className="label">Phone / WhatsApp (optional, encrypted){initial.has_phone ? " - saved; enter to replace" : ""}</label>
+        <label className="label">Phone / WhatsApp (optional, encrypted){initial.has_phone ? " · saved; enter to replace" : ""}</label>
         <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 718 555 0142" />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} /> Show my phone/WhatsApp to buyers after they pay (in-app chat is always on)
+      <label className="flex items-center gap-3 rounded-xl border border-line-2 p-3.5 text-sm">
+        <input type="checkbox" className="h-[18px] w-[18px] accent-accent" checked={share} onChange={(e) => setShare(e.target.checked)} /> Show my phone/WhatsApp to buyers after they pay (in-app chat is always on)
       </label>
       <div>
         <label className="label">Short bio</label>
         <input className="input" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={300} />
       </div>
-      {msg && <p className="text-sm text-slate-700">{msg}</p>}
-      <button className="btn-primary" disabled={busy} type="submit">
+      {msg && <p className="text-sm text-ink-2">{msg}</p>}
+      <button className="btn-primary self-start" disabled={busy} type="submit">
         Save
       </button>
     </form>

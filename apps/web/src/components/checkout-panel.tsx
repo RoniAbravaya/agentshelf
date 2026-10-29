@@ -17,6 +17,7 @@ declare global {
  * Human buyer checkout. With a real sandbox client id it renders PayPal Smart
  * Buttons (createOrder on our server, capture on our server). In mock mode it
  * shows a "Simulate PayPal payment" button that walks the same server path.
+ * On phones the delivery choice and pay button sit in a sticky bottom bar.
  */
 export function CheckoutPanel(props: {
   listingId: string;
@@ -51,7 +52,6 @@ export function CheckoutPanel(props: {
     window.location.href = `/orders/${data.order.id}?paid=1`;
   }
 
-  // Real PayPal JS SDK buttons
   useEffect(() => {
     if (!props.paypalClientId || !available || props.paypalMode === "mock") return;
     const el = buttonsRef.current;
@@ -62,8 +62,12 @@ export function CheckoutPanel(props: {
       el.innerHTML = "";
       window.paypal
         .Buttons({
-          style: { layout: "vertical", shape: "rect", label: "pay" },
-          createOrder: () => createOrder().catch((e) => { setError(e.message); throw e; }),
+          style: { layout: "vertical", shape: "pill", label: "pay" },
+          createOrder: () =>
+            createOrder().catch((e) => {
+              setError(e.message);
+              throw e;
+            }),
           onApprove: (data: { orderID: string }) => capture(data.orderID).catch((e) => setError(e.message)),
           onCancel: () => setError("Checkout cancelled. The item stays reserved for a few minutes."),
           onError: (err: unknown) => setError(err instanceof Error ? err.message : "PayPal error"),
@@ -100,43 +104,64 @@ export function CheckoutPanel(props: {
     }
   }
 
-  return (
-    <div className="card space-y-3 p-5">
-      {!available && <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">This item is {props.status.toLowerCase()}.</div>}
-      <div className="space-y-2">
-        <div className="label">Delivery</div>
-        {props.pickup && (
-          <label className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
-            <span className="flex items-center gap-2">
-              <input type="radio" name="fulfillment" checked={fulfillment === "PICKUP"} onChange={() => setFulfillment("PICKUP")} disabled={!available} /> Local pickup
-            </span>
-            <span>free</span>
-          </label>
-        )}
-        {props.shippingCents != null && (
-          <label className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
-            <span className="flex items-center gap-2">
-              <input type="radio" name="fulfillment" checked={fulfillment === "SHIP"} onChange={() => setFulfillment("SHIP")} disabled={!available} /> Shipping
-            </span>
-            <span>{formatUsd(props.shippingCents)}</span>
-          </label>
-        )}
-      </div>
-      <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="text-sm text-slate-600">Total</span>
-        <span className="text-xl font-bold">{formatUsd(total)}</span>
-      </div>
+  const deliveryChoice = (
+    <fieldset className="flex flex-col gap-2 border-0 p-0">
+      <legend className="eyebrow mb-2">Delivery</legend>
+      {props.pickup && (
+        <label className={`flex min-h-12 cursor-pointer items-center justify-between gap-2.5 rounded-xl px-3.5 text-sm ${fulfillment === "PICKUP" ? "border-2 border-accent bg-accent-tint" : "border border-line-2"}`}>
+          <span className="flex items-center gap-2.5">
+            <input type="radio" name="fulfillment" className="h-[18px] w-[18px] accent-accent" checked={fulfillment === "PICKUP"} onChange={() => setFulfillment("PICKUP")} disabled={!available} /> Local pickup
+          </span>
+          <strong>Free</strong>
+        </label>
+      )}
+      {props.shippingCents != null && (
+        <label className={`flex min-h-12 cursor-pointer items-center justify-between gap-2.5 rounded-xl px-3.5 text-sm ${fulfillment === "SHIP" ? "border-2 border-accent bg-accent-tint" : "border border-line-2"}`}>
+          <span className="flex items-center gap-2.5">
+            <input type="radio" name="fulfillment" className="h-[18px] w-[18px] accent-accent" checked={fulfillment === "SHIP"} onChange={() => setFulfillment("SHIP")} disabled={!available} /> Shipping
+          </span>
+          <strong>{formatUsd(props.shippingCents)}</strong>
+        </label>
+      )}
+    </fieldset>
+  );
+
+  const payControl = (
+    <>
       {available && props.paypalMode === "mock" && (
         <button className="btn-accent w-full" onClick={simulate} disabled={busy} type="button">
-          {busy ? "Starting..." : "Simulate PayPal payment"}
+          {busy ? "Starting…" : `Simulate PayPal payment · ${formatUsd(total)}`}
         </button>
       )}
-      {available && props.paypalMode !== "mock" && props.paypalClientId && <div ref={buttonsRef} />}
-      {available && props.paypalMode === "none" && <p className="text-sm text-red-700">PayPal is not configured on this server.</p>}
-      {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      <p className="text-xs text-slate-500">
-        {props.signedIn ? "The order will appear in your account." : "You can pay as a guest; sign in to keep the order in your account and chat with the seller."} Payment goes directly to the seller's PayPal account; the item is reserved for 10 minutes while you pay.
-      </p>
-    </div>
+      {available && props.paypalMode !== "mock" && props.paypalClientId && <div ref={buttonsRef} className="min-h-12" />}
+      {available && props.paypalMode === "none" && <p className="text-sm text-danger">PayPal is not configured on this server.</p>}
+    </>
+  );
+
+  return (
+    <>
+      <div className="card-raised flex flex-col gap-3.5 p-5">
+        {!available && <div className="rounded-xl bg-surface-2 px-3 py-2 text-sm text-ink-2">This item is {props.status.toLowerCase()}.</div>}
+        {deliveryChoice}
+        <div className="flex items-baseline justify-between border-t border-line pt-3.5">
+          <span className="text-sm text-ink-2">Total</span>
+          <span className="font-display text-[26px] font-extrabold">{formatUsd(total)}</span>
+        </div>
+        <div className="hidden md:block">{payControl}</div>
+        {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        <p className="text-xs leading-relaxed text-muted">
+          {props.signedIn ? "The order will appear in your account." : "You can pay as a guest; sign in to keep the order in your account and chat with the seller."} Paid directly to the seller&apos;s PayPal account. The item is reserved for 10 minutes while you pay. PayPal buyer protection applies.
+        </p>
+      </div>
+      {available && (
+        <div className="fixed inset-x-0 bottom-[60px] z-20 border-t border-line bg-white px-4 pb-2 pt-2.5 md:hidden">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="text-ink-2">{fulfillment === "PICKUP" ? "Local pickup · free" : `Shipping · ${formatUsd(props.shippingCents ?? 0)}`}</span>
+            <span className="font-display text-xl font-extrabold">{formatUsd(total)}</span>
+          </div>
+          {payControl}
+        </div>
+      )}
+    </>
   );
 }

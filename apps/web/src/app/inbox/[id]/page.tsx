@@ -24,14 +24,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const role = data.conversation.sellerId === user.id ? "seller" : "buyer";
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate font-display text-xl font-extrabold">
             <Link href={`/listings/${data.conversation.listingId}`} className="hover:underline">
               {listing?.title ?? "Listing"}
             </Link>
           </h1>
-          <p className="text-sm text-slate-500">{role === "seller" ? "Buyer conversation" : "Conversation with the seller"} · reply time feeds the seller profile</p>
+          <p className="text-sm text-ink-2">{role === "seller" ? "Buyer conversation · your reply time feeds your profile" : "Conversation with the seller"}</p>
         </div>
         {data.conversation.orderId && (
           <Link className="btn-secondary" href={`/orders/${data.conversation.orderId}`}>
