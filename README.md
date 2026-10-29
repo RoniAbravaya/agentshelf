@@ -93,7 +93,7 @@ Copy `.env.example` to `.env` (one file at the repo root is shared by both apps)
 | `DATABASE_URL` | Postgres with pgvector (Supabase or Railway). Empty → embedded PGlite under `./.data`. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` | Sandbox REST app (enable **Vault** under the app's advanced options). Empty → in-memory mock in dev. |
 | `NEXT_PUBLIC_PAYPAL_CLIENT_ID` | Same client id, for the JS SDK buttons. |
-| `PAYPAL_AGENT_PAYEE_MODE` | `seller` (default: vaulted agent orders name the seller as payee) or `platform` (fallback if your sandbox rejects `vault_id` + a different payee). |
+| `PAYPAL_AGENT_PAYEE_MODE` | `seller` (default: vaulted agent orders name the seller as payee) or `platform` (no payee: the platform account receives the funds). The live demo runs in `platform` mode until real seller sandbox accounts exist; see the sandbox findings below. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Claude vision listing generator, mandate parser and the demo agent (default `claude-opus-5-5`). |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | OpenAI vision listing generator, mandate parser and the demo agent when no Anthropic key is set (default `gpt-6-luna`; `gpt-6-astra` for best quality). |
 | `LISTING_AI_PROVIDER` | `anthropic`, `openai` or `stub`. Default: first provider with a key. The seller can also pick per upload. |
@@ -108,6 +108,8 @@ Copy `.env.example` to `.env` (one file at the repo root is shared by both apps)
 3. Create a webhook for `https://<your-host>/api/webhooks/paypal` with events `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `VAULT.PAYMENT-TOKEN.CREATED`, `VAULT.PAYMENT-TOKEN.DELETED`; copy the webhook id. Locally, use ngrok and the dashboard's webhook simulator.
 4. In AgentShelf, each seller enters their sandbox payee email in **Settings** (the seed uses `SEED_SELLER_A_EMAIL` etc. if set).
 5. **Day-1 spike**: sign in as the agent buyer, save the wallet (Settings → Agent wallet → Connect PayPal), then buy something under $100 through the demo agent. If PayPal rejects a vaulted order whose payee differs from the platform account, AgentShelf automatically falls back to the one-tap approval link; set `PAYPAL_AGENT_PAYEE_MODE=platform` to route agent orders to the platform account instead.
+
+**Sandbox findings (29 Oct 2026):** the Vault v3 flow works end to end (setup token → payer approval → payment token), and a vaulted agent order with no payee completed instantly (`COMPLETED` with a capture id, webhook delivered and verified). A vaulted order naming a payee email that is **not** a sandbox account fails with `422 PAYEE_ACCOUNT_INVALID` and falls back to the approval link. Create real seller sandbox accounts, set their emails as the sellers' payout address, then switch to `PAYPAL_AGENT_PAYEE_MODE=seller` and retest; the fallback keeps every purchase completable either way.
 
 ### Connect Claude Desktop
 
