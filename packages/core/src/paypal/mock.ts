@@ -5,6 +5,7 @@ import type {
   CreateOrderInput,
   PayPalOrder,
   PayPalPaymentToken,
+  PayPalPayoutBatch,
   PayPalRefund,
   PayPalSetupToken,
   PayPalWebhookEvent,
@@ -183,6 +184,26 @@ export class MockPayPalClient implements PayPalApi {
 
   async addTracking(input: { orderId: string; captureId: string; trackingNumber: string; carrier: string; notifyPayer?: boolean }): Promise<PayPalOrder> {
     return this.getOrder(input.orderId);
+  }
+
+  private payouts = new Map<string, PayPalPayoutBatch>();
+  async createPayout(input: { requestId: string; senderBatchId: string; senderItemId: string; receiverEmail: string; amountCents: number; note?: string }): Promise<PayPalPayoutBatch> {
+    const existing = [...this.payouts.values()].find((b) => b.batch_header.sender_batch_header?.sender_batch_id === input.senderBatchId);
+    if (existing) return existing;
+    const id = `MOCK-PB-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const batch: PayPalPayoutBatch = {
+      batch_header: { payout_batch_id: id, batch_status: "PENDING", sender_batch_header: { sender_batch_id: input.senderBatchId } },
+      items: [{ payout_item_id: `MOCK-PI-${randomUUID().slice(0, 6)}`, transaction_status: "PENDING", payout_item: { sender_item_id: input.senderItemId, receiver: input.receiverEmail } }],
+    };
+    this.payouts.set(id, batch);
+    return batch;
+  }
+  async getPayout(batchId: string): Promise<PayPalPayoutBatch> {
+    const b = this.payouts.get(batchId);
+    if (!b) throw new Error("mock payout not found");
+    b.batch_header.batch_status = "SUCCESS";
+    for (const i of b.items ?? []) i.transaction_status = "SUCCESS";
+    return b;
   }
 
   async verifyWebhookSignature(_headers: WebhookHeaders, _event: PayPalWebhookEvent): Promise<boolean> {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { formatUsd } from "@agentshelf/shared";
-import { CommerceError, getOrderForUser, pickupAddressFor, schema } from "@agentshelf/core";
+import { CommerceError, getOrderForUser, pickupAddressFor, refreshPayoutStatus, schema } from "@agentshelf/core";
 import { OrderActions } from "@/components/order-actions";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -40,6 +40,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     ? await database.query.conversations.findFirst({ where: and(eq(schema.conversations.listingId, order.listingId), eq(schema.conversations.buyerId, order.buyerId)) })
     : null;
   const review = await database.query.reviews.findFirst({ where: eq(schema.reviews.orderId, order.id) });
+  if (role === "seller" && order.paypalPayoutBatchId && order.payoutStatus !== "SUCCESS") {
+    const refreshed = await refreshPayoutStatus(database, order.id);
+    order.payoutStatus = refreshed.payoutStatus;
+    order.payoutError = refreshed.payoutError;
+  }
   const pickupAddress = paid && order.fulfillment === "PICKUP" && listing ? pickupAddressFor(listing) : null;
   const address = order.shippingAddress as Record<string, string | null> | null;
 
@@ -97,6 +102,21 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             <>
               <dt className="text-slate-500">Policy decision</dt>
               <dd>{order.policyResult}</dd>
+            </>
+          )}
+          {order.paypalPayoutBatchId && (
+            <>
+              <dt className="text-slate-500">Seller payout</dt>
+              <dd>
+                {order.payoutStatus ?? "PENDING"} · {formatUsd(order.payoutCents ?? order.totalCents)} to {seller?.paypalPayeeEmail} · batch <span className="font-mono">{order.paypalPayoutBatchId}</span>
+                {order.payoutError && <span className="text-red-700"> · {order.payoutError}</span>}
+              </dd>
+            </>
+          )}
+          {!order.paypalPayoutBatchId && order.payoutStatus === "FAILED" && (
+            <>
+              <dt className="text-slate-500">Seller payout</dt>
+              <dd className="text-red-700">Failed: {order.payoutError}</dd>
             </>
           )}
         </dl>

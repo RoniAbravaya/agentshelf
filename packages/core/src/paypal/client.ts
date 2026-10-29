@@ -5,6 +5,7 @@ import {
   type CreateOrderInput,
   type PayPalOrder,
   type PayPalPaymentToken,
+  type PayPalPayoutBatch,
   type PayPalRefund,
   type PayPalSetupToken,
   type PayPalWebhookEvent,
@@ -38,6 +39,8 @@ export interface PayPalApi {
   refundCapture(input: { captureId: string; requestId: string; amountCents?: number; note?: string }): Promise<PayPalRefund>;
   addTracking(input: { orderId: string; captureId: string; trackingNumber: string; carrier: string; notifyPayer?: boolean }): Promise<PayPalOrder>;
   verifyWebhookSignature(headers: WebhookHeaders, event: PayPalWebhookEvent): Promise<boolean>;
+  createPayout(input: { requestId: string; senderBatchId: string; senderItemId: string; receiverEmail: string; amountCents: number; note?: string }): Promise<PayPalPayoutBatch>;
+  getPayout(batchId: string): Promise<PayPalPayoutBatch>;
 }
 
 export class PayPalClient implements PayPalApi {
@@ -250,6 +253,34 @@ export class PayPalClient implements PayPalApi {
       notify_payer: input.notifyPayer ?? true,
     };
     const { data } = await this.request<PayPalOrder>("POST", `/v2/checkout/orders/${encodeURIComponent(input.orderId)}/track`, body);
+    return data;
+  }
+
+  // ---- Payouts (platform account -> seller) ---------------------------------
+
+  async createPayout(input: { requestId: string; senderBatchId: string; senderItemId: string; receiverEmail: string; amountCents: number; note?: string }): Promise<PayPalPayoutBatch> {
+    const body = {
+      sender_batch_header: {
+        sender_batch_id: input.senderBatchId,
+        email_subject: "You have a payout from AgentShelf",
+        email_message: (input.note ?? "Payment for your AgentShelf sale").slice(0, 1000),
+      },
+      items: [
+        {
+          recipient_type: "EMAIL",
+          amount: { value: centsToPayPalValue(input.amountCents), currency: "USD" },
+          receiver: input.receiverEmail,
+          note: (input.note ?? "AgentShelf sale").slice(0, 4000),
+          sender_item_id: input.senderItemId,
+        },
+      ],
+    };
+    const { data } = await this.request<PayPalPayoutBatch>("POST", "/v1/payments/payouts", body, { "PayPal-Request-Id": input.requestId });
+    return data;
+  }
+
+  async getPayout(batchId: string): Promise<PayPalPayoutBatch> {
+    const { data } = await this.request<PayPalPayoutBatch>("GET", `/v1/payments/payouts/${encodeURIComponent(batchId)}`);
     return data;
   }
 

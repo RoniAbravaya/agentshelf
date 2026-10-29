@@ -176,6 +176,29 @@ describe("agent purchase flow", () => {
   });
 });
 
+describe("platform payee mode: seller settled by payout", () => {
+  it("creates a payout to the seller after a vaulted agent purchase", async () => {
+    const { resetEnvCache } = await import("../env");
+    process.env.PAYPAL_AGENT_PAYEE_MODE = "platform";
+    resetEnvCache();
+    try {
+      await insertListing("lst_payout", { priceCents: 1500 });
+      const q = await quotePurchase(db, { buyerId: BUYER, listingId: "lst_payout", fulfillment: "PICKUP" });
+      const r = await buy(db, { buyerId: BUYER, quoteId: q.quote_id });
+      expect(r.status).toBe("COMPLETED");
+      const order = await db.query.orders.findFirst({ where: eq(orders.id, r.order_id!) });
+      expect(order?.paypalPayoutBatchId).toMatch(/^MOCK-PB-/);
+      expect(order?.payoutCents).toBe(1500);
+      const { settleSellerPayout } = await import("./orders");
+      const again = await settleSellerPayout(db, order!.id);
+      expect(again.paypalPayoutBatchId).toBe(order!.paypalPayoutBatchId);
+    } finally {
+      process.env.PAYPAL_AGENT_PAYEE_MODE = "seller";
+      resetEnvCache();
+    }
+  });
+});
+
 describe("human checkout, reservations, webhooks, refunds, ratings", () => {
   it("reserves the item so a second buyer is told it is reserved", async () => {
     await insertListing("lst_web", { priceCents: 5000 });

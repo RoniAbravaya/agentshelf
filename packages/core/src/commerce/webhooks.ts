@@ -124,6 +124,34 @@ async function handle(db: Db, event: PayPalWebhookEvent): Promise<string> {
       await audit(db, { actor: "system", action: "order.refunded.webhook", entity: "order", entityId: order.id });
       return "order REFUNDED";
     }
+    case "PAYMENT.PAYOUTS-ITEM.SUCCEEDED":
+    case "PAYMENT.PAYOUTS-ITEM.FAILED":
+    case "PAYMENT.PAYOUTS-ITEM.BLOCKED":
+    case "PAYMENT.PAYOUTS-ITEM.CANCELED":
+    case "PAYMENT.PAYOUTS-ITEM.DENIED":
+    case "PAYMENT.PAYOUTS-ITEM.REFUNDED":
+    case "PAYMENT.PAYOUTS-ITEM.RETURNED":
+    case "PAYMENT.PAYOUTS-ITEM.UNCLAIMED": {
+      const item = r.payout_item as { sender_item_id?: string } | undefined;
+      const orderId = item?.sender_item_id;
+      if (!orderId) return "no sender_item_id";
+      const status = typeof r.transaction_status === "string" ? r.transaction_status : (event.event_type.split(".").pop() ?? "UNKNOWN");
+      const errors = r.errors as { message?: string } | undefined;
+      const updated = await db.update(orders).set({ payoutStatus: status, payoutError: errors?.message ?? null, updatedAt: new Date() }).where(eq(orders.id, orderId)).returning({ id: orders.id });
+      return updated.length ? `payout ${status}` : "unknown order";
+    }
+    case "PAYMENT.PAYOUTSBATCH.SUCCESS":
+    case "PAYMENT.PAYOUTSBATCH.DENIED":
+    case "PAYMENT.PAYOUTSBATCH.PROCESSING": {
+      const header = r.batch_header as { payout_batch_id?: string; batch_status?: string } | undefined;
+      if (!header?.payout_batch_id) return "no batch id";
+      const updated = await db
+        .update(orders)
+        .set({ payoutStatus: header.batch_status ?? (event.event_type.split(".").pop() ?? "UNKNOWN"), updatedAt: new Date() })
+        .where(eq(orders.paypalPayoutBatchId, header.payout_batch_id))
+        .returning({ id: orders.id });
+      return updated.length ? `payout batch ${header.batch_status}` : "unknown batch";
+    }
     case "VAULT.PAYMENT-TOKEN.CREATED":
     case "VAULT.PAYMENT-TOKEN.DELETED": {
       const tokenId = typeof r.id === "string" ? r.id : null;

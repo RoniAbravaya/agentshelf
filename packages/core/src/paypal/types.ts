@@ -115,6 +115,20 @@ export interface PayPalRefund {
   links?: PayPalLink[];
 }
 
+export interface PayPalPayoutBatch {
+  batch_header: {
+    payout_batch_id: string;
+    batch_status: string; // PENDING | PROCESSING | SUCCESS | DENIED | CANCELED
+    sender_batch_header?: { sender_batch_id?: string };
+  };
+  items?: Array<{
+    payout_item_id: string;
+    transaction_status?: string; // SUCCESS | FAILED | PENDING | UNCLAIMED | RETURNED | ONHOLD | BLOCKED | REFUNDED | REVERSED
+    payout_item?: { sender_item_id?: string; receiver?: string };
+    errors?: { name?: string; message?: string };
+  }>;
+}
+
 export interface PayPalWebhookEvent {
   id: string;
   event_type: string;

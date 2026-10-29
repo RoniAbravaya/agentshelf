@@ -116,6 +116,14 @@ export async function markOrderPaid(
     return row;
   });
   if (!updated) return (await db.query.orders.findFirst({ where: eq(orders.id, order.id) }))!;
+  // Agent orders collected by the platform account: pay the seller out right away (plan fallback 1).
+  if (updated.channel === "AGENT") {
+    try {
+      await settleSellerPayout(db, updated.id);
+    } catch (err) {
+      console.error("seller payout failed", err);
+    }
+  }
   // Open the buyer-seller chat with a system note so pickup/shipping can be arranged.
   if (updated.buyerId) {
     try {
@@ -638,6 +646,65 @@ export async function markCollected(db: Db, input: { orderId: string; buyerId: s
   const [row] = await db.update(orders).set({ status: "PICKED_UP", collectedAt: new Date(), updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
   await audit(db, { actor: "buyer", actorId: input.buyerId, action: "order.collected", entity: "order", entityId: order.id });
   return row!;
+}
+
+/**
+ * Seller settlement for agent orders. When PAYPAL_AGENT_PAYEE_MODE=platform the
+ * vaulted payment lands in the platform account (PayPal scopes a vaulted wallet to
+ * the merchant that saved it), so the seller is paid through a Payout for the full
+ * order amount. Idempotent: one payout per order, with a PayPal-Request-Id derived
+ * from the order request id.
+ */
+export async function settleSellerPayout(db: Db, orderId: string): Promise<Order> {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
+  if (!order) throw notFound("order");
+  const env = getEnv();
+  const paypal = getPayPal();
+  if (!paypal || order.channel !== "AGENT" || env.PAYPAL_AGENT_PAYEE_MODE !== "platform") return order;
+  if (order.paypalPayoutBatchId || !["PAID", "SHIPPED", "PICKED_UP", "COMPLETED"].includes(order.status)) return order;
+  const seller = await db.query.sellers.findFirst({ where: eq(sellers.userId, order.sellerId) });
+  if (!seller) return order;
+  const title = (order.listingSnapshot as { title?: string } | null)?.title ?? "item";
+  try {
+    const batch = await paypal.createPayout({
+      requestId: `${order.requestId}-payout`,
+      senderBatchId: `${order.id}-payout`,
+      senderItemId: order.id,
+      receiverEmail: seller.paypalPayeeEmail,
+      amountCents: order.totalCents,
+      note: `AgentShelf sale: ${title} (order ${order.id})`,
+    });
+    const [row] = await db
+      .update(orders)
+      .set({ paypalPayoutBatchId: batch.batch_header.payout_batch_id, payoutStatus: batch.batch_header.batch_status, payoutCents: order.totalCents, payoutError: null, updatedAt: new Date() })
+      .where(eq(orders.id, order.id))
+      .returning();
+    await audit(db, { actor: "system", action: "order.payout", entity: "order", entityId: order.id, details: { batch_id: batch.batch_header.payout_batch_id, receiver: seller.paypalPayeeEmail, cents: order.totalCents } });
+    return row ?? order;
+  } catch (err) {
+    const message = err instanceof PayPalApiError ? `${err.message} ${err.issues.map((i) => i.issue).join(",")}`.trim() : err instanceof Error ? err.message : String(err);
+    const [row] = await db.update(orders).set({ payoutStatus: "FAILED", payoutError: message.slice(0, 500), updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
+    await audit(db, { actor: "system", action: "order.payout_failed", entity: "order", entityId: order.id, details: { error: message } });
+    return row ?? order;
+  }
+}
+
+/** Refresh a payout status from PayPal (used by the seller order page). */
+export async function refreshPayoutStatus(db: Db, orderId: string): Promise<Order> {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
+  if (!order) throw notFound("order");
+  const paypal = getPayPal();
+  if (!paypal || !order.paypalPayoutBatchId) return order;
+  try {
+    const batch = await paypal.getPayout(order.paypalPayoutBatchId);
+    const item = batch.items?.[0];
+    const status = item?.transaction_status ?? batch.batch_header.batch_status;
+    const [row] = await db.update(orders).set({ payoutStatus: status, payoutError: item?.errors?.message ?? null, updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
+    return row ?? order;
+  } catch (err) {
+    console.error("payout status refresh failed", err);
+    return order;
+  }
 }
 
 /** A buyer withdraws an order that is still waiting for PayPal approval: releases the item and the budget. */
