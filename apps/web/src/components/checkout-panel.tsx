@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUsd } from "@agentshelf/shared";
 
 type Fulfillment = "PICKUP" | "SHIP";
@@ -14,10 +14,12 @@ declare global {
 }
 
 /**
- * Human buyer checkout. With a real sandbox client id it renders PayPal Smart
- * Buttons (createOrder on our server, capture on our server). In mock mode it
- * shows a "Simulate PayPal payment" button that walks the same server path.
- * On phones the delivery choice and pay button sit in a sticky bottom bar.
+ * Human buyer checkout without any agent.
+ * - Real sandbox: PayPal Smart Buttons (createOrder and capture on our server),
+ *   rendered in the desktop card and in the phone's sticky bar. If the PayPal
+ *   script does not load, a "Pay on PayPal.com" button uses the redirect flow
+ *   (server creates the order, PayPal approval page, our return URL captures).
+ * - Mock mode: "Simulate PayPal payment" walks the same server path.
  */
 export function CheckoutPanel(props: {
   listingId: string;
@@ -32,18 +34,21 @@ export function CheckoutPanel(props: {
   const [fulfillment, setFulfillment] = useState<Fulfillment>(props.pickup ? "PICKUP" : "SHIP");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const buttonsRef = useRef<HTMLDivElement>(null);
+  const [sdk, setSdk] = useState<"loading" | "ready" | "failed">("loading");
+  const desktopRef = useRef<HTMLDivElement>(null);
+  const mobileRef = useRef<HTMLDivElement>(null);
   const fulfillmentRef = useRef(fulfillment);
   fulfillmentRef.current = fulfillment;
   const total = props.priceCents + (fulfillment === "SHIP" ? (props.shippingCents ?? 0) : 0);
   const available = props.status === "AVAILABLE";
+  const smartButtons = available && props.paypalMode !== "mock" && props.paypalMode !== "none" && Boolean(props.paypalClientId);
 
-  async function createOrder(): Promise<string> {
+  const createOrder = useCallback(async (): Promise<{ paypal_order_id: string; approval_url: string | null }> => {
     const res = await fetch("/api/checkout/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listing_id: props.listingId, fulfillment: fulfillmentRef.current }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Could not start checkout");
-    return data.paypal_order_id as string;
-  }
+    return data;
+  }, [props.listingId]);
 
   async function capture(paypalOrderId: string): Promise<void> {
     const res = await fetch(`/api/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`, { method: "POST" });
@@ -52,52 +57,67 @@ export function CheckoutPanel(props: {
     window.location.href = `/orders/${data.order.id}?paid=1`;
   }
 
+  // Load the PayPal JS SDK once and render Smart Buttons into every visible container.
   useEffect(() => {
-    if (!props.paypalClientId || !available || props.paypalMode === "mock") return;
-    const el = buttonsRef.current;
-    if (!el) return;
+    if (!smartButtons || !props.paypalClientId) return;
     let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled && !window.paypal) setSdk("failed");
+    }, 8000);
+    const opts = {
+      style: { layout: "vertical", shape: "pill", label: "pay" },
+      createOrder: () =>
+        createOrder()
+          .then((d) => d.paypal_order_id)
+          .catch((e) => {
+            setError(e.message);
+            throw e;
+          }),
+      onApprove: (data: { orderID: string }) => capture(data.orderID).catch((e) => setError(e.message)),
+      onCancel: () => setError("Checkout cancelled. The item stays reserved for a few minutes."),
+      onError: (err: unknown) => setError(err instanceof Error ? err.message : "PayPal error"),
+    };
     function render() {
-      if (cancelled || !window.paypal || !el) return;
-      el.innerHTML = "";
-      window.paypal
-        .Buttons({
-          style: { layout: "vertical", shape: "pill", label: "pay" },
-          createOrder: () =>
-            createOrder().catch((e) => {
-              setError(e.message);
-              throw e;
-            }),
-          onApprove: (data: { orderID: string }) => capture(data.orderID).catch((e) => setError(e.message)),
-          onCancel: () => setError("Checkout cancelled. The item stays reserved for a few minutes."),
-          onError: (err: unknown) => setError(err instanceof Error ? err.message : "PayPal error"),
-        })
-        .render(el)
-        .catch(() => {});
+      if (cancelled || !window.paypal) return;
+      clearTimeout(timer);
+      setSdk("ready");
+      for (const el of [desktopRef.current, mobileRef.current]) {
+        if (!el || el.childElementCount > 0) continue;
+        window.paypal.Buttons(opts).render(el).catch(() => setSdk("failed"));
+      }
     }
     if (window.paypal) render();
     else {
-      const s = document.createElement("script");
-      s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons`;
-      s.async = true;
-      s.onload = render;
-      s.onerror = () => setError("Could not load the PayPal SDK");
-      document.body.appendChild(s);
+      const existing = document.querySelector<HTMLScriptElement>("script[data-paypal-sdk]");
+      if (existing) existing.addEventListener("load", render);
+      else {
+        const s = document.createElement("script");
+        s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons`;
+        s.async = true;
+        s.dataset.paypalSdk = "1";
+        s.onload = render;
+        s.onerror = () => {
+          clearTimeout(timer);
+          setSdk("failed");
+        };
+        document.body.appendChild(s);
+      }
     }
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.paypalClientId, available]);
+  }, [smartButtons, props.paypalClientId]);
 
-  async function simulate() {
+  /** Redirect flow: works without the PayPal script and in mock mode. */
+  async function payOnPayPal() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/checkout/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listing_id: props.listingId, fulfillment }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not start checkout");
-      window.location.href = data.approval_url;
+      const d = await createOrder();
+      if (!d.approval_url) throw new Error("PayPal did not return an approval link");
+      window.location.href = d.approval_url;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -126,17 +146,41 @@ export function CheckoutPanel(props: {
     </fieldset>
   );
 
-  const payControl = (
-    <>
-      {available && props.paypalMode === "mock" && (
-        <button className="btn-accent w-full" onClick={simulate} disabled={busy} type="button">
+  const paypalIcon = (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="3" />
+      <path d="M2 10h20" />
+    </svg>
+  );
+
+  function payControl(ref: React.RefObject<HTMLDivElement | null>) {
+    if (!available) return null;
+    if (props.paypalMode === "none") return <p className="text-sm text-danger">PayPal is not configured on this server.</p>;
+    if (props.paypalMode === "mock") {
+      return (
+        <button className="btn-accent w-full" onClick={payOnPayPal} disabled={busy} type="button">
+          {paypalIcon}
           {busy ? "Starting…" : `Simulate PayPal payment · ${formatUsd(total)}`}
         </button>
-      )}
-      {available && props.paypalMode !== "mock" && props.paypalClientId && <div ref={buttonsRef} className="min-h-12" />}
-      {available && props.paypalMode === "none" && <p className="text-sm text-danger">PayPal is not configured on this server.</p>}
-    </>
-  );
+      );
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        <div ref={ref} className={sdk === "failed" ? "hidden" : "min-h-12"} />
+        {sdk === "loading" && <div className="text-center text-xs text-muted">Loading PayPal…</div>}
+        {sdk === "failed" ? (
+          <button className="btn-accent w-full" onClick={payOnPayPal} disabled={busy} type="button">
+            {paypalIcon}
+            {busy ? "Redirecting…" : `Pay ${formatUsd(total)} with PayPal`}
+          </button>
+        ) : (
+          <button className="text-center text-xs text-muted underline" onClick={payOnPayPal} disabled={busy} type="button">
+            {busy ? "Redirecting…" : "Button not showing? Pay on PayPal.com instead"}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -147,7 +191,7 @@ export function CheckoutPanel(props: {
           <span className="text-sm text-ink-2">Total</span>
           <span className="font-display text-[26px] font-extrabold">{formatUsd(total)}</span>
         </div>
-        <div className="hidden md:block">{payControl}</div>
+        <div className="hidden md:block">{payControl(desktopRef)}</div>
         {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
         <p className="text-xs leading-relaxed text-muted">
           {props.signedIn ? "The order will appear in your account." : "You can pay as a guest; sign in to keep the order in your account and chat with the seller."} Paid directly to the seller&apos;s PayPal account. The item is reserved for 10 minutes while you pay. PayPal buyer protection applies.
@@ -159,7 +203,7 @@ export function CheckoutPanel(props: {
             <span className="text-ink-2">{fulfillment === "PICKUP" ? "Local pickup · free" : `Shipping · ${formatUsd(props.shippingCents ?? 0)}`}</span>
             <span className="font-display text-xl font-extrabold">{formatUsd(total)}</span>
           </div>
-          {payControl}
+          {payControl(mobileRef)}
         </div>
       )}
     </>
