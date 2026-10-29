@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addTracking, markCollected, rateOrder, refundOrder, unauthenticated, validation } from "@agentshelf/core";
+import { addTracking, cancelPendingOrder, markCollected, rateOrder, refundOrder, unauthenticated, validation } from "@agentshelf/core";
 import { handler, json, parseBody, type RouteParams } from "@/lib/api";
 import { assertSameOrigin, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -15,6 +15,7 @@ const ReviewInput = z.object({ stars: z.number().int().min(1).max(5), comment: z
  * POST /api/orders/{id}/refund    (seller)  -> PayPal refund, order REFUNDED
  * POST /api/orders/{id}/collected (buyer)   -> PICKED_UP
  * POST /api/orders/{id}/review    (buyer)   -> rating saved, seller score updated
+ * POST /api/orders/{id}/cancel    (buyer)   -> withdraw an order still awaiting PayPal approval
  */
 export const POST = handler(async (req, { params }: RouteParams<{ id: string; action: string }>) => {
   await assertSameOrigin();
@@ -35,6 +36,10 @@ export const POST = handler(async (req, { params }: RouteParams<{ id: string; ac
     }
     case "collected": {
       const order = await markCollected(database, { orderId: id, buyerId: user.id });
+      return json({ order });
+    }
+    case "cancel": {
+      const order = await cancelPendingOrder(database, { orderId: id, buyerId: user.id });
       return json({ order });
     }
     case "review": {

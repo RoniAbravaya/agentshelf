@@ -640,6 +640,22 @@ export async function markCollected(db: Db, input: { orderId: string; buyerId: s
   return row!;
 }
 
+/** A buyer withdraws an order that is still waiting for PayPal approval: releases the item and the budget. */
+export async function cancelPendingOrder(db: Db, input: { orderId: string; buyerId: string }): Promise<Order> {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, input.orderId) });
+  if (!order) throw notFound("order");
+  if (order.buyerId !== input.buyerId) throw forbidden("Not your order");
+  if (order.status !== "PENDING_APPROVAL") throw validation(`Order is ${order.status}; only orders awaiting approval can be cancelled`);
+  const [row] = await db
+    .update(orders)
+    .set({ status: "CANCELLED", failureReason: "Cancelled by the buyer before approval", approvalUrl: null, updatedAt: new Date() })
+    .where(and(eq(orders.id, order.id), eq(orders.status, "PENDING_APPROVAL")))
+    .returning();
+  await releaseReservation(db, order.listingId, order.id);
+  await audit(db, { actor: "buyer", actorId: input.buyerId, action: "order.cancelled", entity: "order", entityId: order.id });
+  return row ?? order;
+}
+
 export async function refundOrder(db: Db, input: { orderId: string; sellerId: string; amountCents?: number; note?: string }): Promise<Order> {
   const paypal = requirePayPalApi();
   const order = await db.query.orders.findFirst({ where: eq(orders.id, input.orderId) });

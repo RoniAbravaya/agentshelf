@@ -59,6 +59,21 @@ export function OrderActions(props: { orderId: string; role: "buyer" | "seller";
       </form>,
     );
   }
+  if (props.role === "buyer" && props.status === "PENDING_APPROVAL") {
+    actions.push(
+      <button
+        key="cancel"
+        className="btn-danger"
+        disabled={busy}
+        type="button"
+        onClick={() => {
+          if (confirm("Cancel this order? Nothing has been charged; the item and your budget are released.")) void post(`/api/orders/${props.orderId}/cancel`);
+        }}
+      >
+        Cancel this order
+      </button>,
+    );
+  }
   if (props.role === "buyer" && props.fulfillment === "PICKUP" && props.status === "PAID") {
     actions.push(
       <button key="collected" className="btn-primary" disabled={busy} type="button" onClick={() => post(`/api/orders/${props.orderId}/collected`)}>
