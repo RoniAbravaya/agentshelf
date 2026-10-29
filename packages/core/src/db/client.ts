@@ -19,7 +19,12 @@ let closeFn: (() => Promise<void>) | null = null;
  * Migrations from supabase/migrations are applied on first use.
  */
 export function getDb(): Promise<Db> {
-  if (!dbPromise) dbPromise = open();
+  if (!dbPromise) {
+    dbPromise = open().catch((err) => {
+      dbPromise = null; // let the next request retry instead of caching the failure
+      throw err;
+    });
+  }
   return dbPromise;
 }
 

@@ -72,6 +72,7 @@ Then:
 
 > Embedded PGlite is single-process: stop the dev server before `pnpm db:seed`, or re-seed while it runs with
 > `curl -X POST http://localhost:3000/api/dev/seed -H "Authorization: Bearer $INTERNAL_API_SECRET"`.
+> If the dev server was killed hard and PGlite then fails to open (`RuntimeError: Aborted()`), delete `.data/agentshelf` and run `pnpm db:seed` again.
 
 ### Run the scripted end-to-end scenarios
 
@@ -94,7 +95,7 @@ Copy `.env.example` to `.env` (one file at the repo root is shared by both apps)
 | `NEXT_PUBLIC_PAYPAL_CLIENT_ID` | Same client id, for the JS SDK buttons. |
 | `PAYPAL_AGENT_PAYEE_MODE` | `seller` (default: vaulted agent orders name the seller as payee) or `platform` (fallback if your sandbox rejects `vault_id` + a different payee). |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Claude vision listing generator, mandate parser and the demo agent (default `claude-opus-5-5`). |
-| `OPENAI_API_KEY`, `OPENAI_MODEL` | OpenAI vision listing generator (default `gpt-6-luna`; `gpt-6-astra` for best quality). |
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | OpenAI vision listing generator, mandate parser and the demo agent when no Anthropic key is set (default `gpt-6-luna`; `gpt-6-astra` for best quality). |
 | `LISTING_AI_PROVIDER` | `anthropic`, `openai` or `stub`. Default: first provider with a key. The seller can also pick per upload. |
 | `EMBEDDINGS_PROVIDER` | `voyage` (`VOYAGE_API_KEY`) or `openai` for semantic search (512-dim pgvector); `none` → Postgres full-text only. |
 | `STORAGE_PROVIDER` | `local` (served from `/uploads`) or `supabase` (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, bucket). |
