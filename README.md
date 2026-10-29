@@ -132,6 +132,17 @@ Alternative (`claude_desktop_config.json`):
 
 A schema.org product feed is at `/feed.json` and every listing page carries Product JSON-LD for non-MCP agents.
 
+## Live demo (Railway)
+
+| What | URL |
+| --- | --- |
+| Storefront, dashboard, demo agent | https://web-production-2ad70.up.railway.app |
+| MCP endpoint (Streamable HTTP) | https://web-production-2ad70.up.railway.app/mcp |
+| PayPal webhook receiver | https://web-production-2ad70.up.railway.app/api/webhooks/paypal |
+| Product feed | https://web-production-2ad70.up.railway.app/feed.json |
+
+Source: https://github.com/RoniAbravaya/agentshelf
+
 ## Deploy on Railway (with GitHub)
 
 1. Push this repo to GitHub and create a Railway project **from the repo** (root directory `/`). `railway.json` / `nixpacks.toml` build the web app and run migrations on start.
