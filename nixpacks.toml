@@ -1,12 +1,14 @@
-# Railway (Nixpacks) build for the AgentShelf monorepo. pnpm comes from the packageManager field via corepack.
+# Railway (Nixpacks) build for the AgentShelf monorepo.
+# pnpm is pinned via npx (corepack caches were not persisting between build steps);
+# the start command uses the locally installed binaries only.
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["corepack enable", "corepack prepare pnpm@12.16.1 --activate", "pnpm install --frozen-lockfile --prod=false"]
+cmds = ["npx -y pnpm@12.16.1 install --frozen-lockfile --prod=false"]
 
 [phases.build]
-cmds = ["pnpm --filter @agentshelf/web build"]
+cmds = ["cd apps/web && npx next build"]
 
 [start]
-cmd = "pnpm --filter @agentshelf/core db:migrate && pnpm --filter @agentshelf/web start"
+cmd = "cd packages/core && npx tsx src/db/migrate.ts && cd ../../apps/web && npx next start"

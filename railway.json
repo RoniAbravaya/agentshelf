@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": { "builder": "NIXPACKS" },
   "deploy": {
-    "startCommand": "pnpm --filter @agentshelf/core db:migrate && pnpm --filter @agentshelf/web start",
+    "startCommand": "cd packages/core && npx tsx src/db/migrate.ts && cd ../../apps/web && npx next start",
     "healthcheckPath": "/feed.json",
     "healthcheckTimeout": 180,
     "restartPolicyType": "ON_FAILURE",
